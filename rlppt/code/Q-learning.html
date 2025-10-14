@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>[强化学习]Q-learning案例 悬崖漫步</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -91,9 +101,16 @@
             width: 100px;
             margin-left: 10px;
         }
-        .info, .showCul {
+        .info, .showCul, .formula {
             display: flex;
             justify-content: center;
+        }
+        .formula {
+            font-size: 18px;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
         }
         .info p{
             margin-right: 15px;
@@ -116,6 +133,13 @@
 </head>
 <body>
     <h1>Qlearning算法案例 悬崖漫步</h1>
+
+    <!-- Q-learning更新公式 -->
+    <div class="formula">
+        <strong>Q-learning更新公式：</strong>
+        $$Q(s_t, a_t) \leftarrow Q(s_t, a_t) + \alpha \left[ R_{t+1} + \gamma \max_{a'} Q(s_{t+1}, a') - Q(s_t, a_t) \right]$$
+    </div>
+
     <div class="container">
         <div class="parameter-row">
             <div>
