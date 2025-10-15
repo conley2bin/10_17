@@ -21,8 +21,8 @@ Q-learning属于off-policy算法，即自始至终使用固定的双策略架构
 - **定义**：ε-greedy策略
   ```
   π(a|s) = {
-    1 - ε + ε/|A|,  如果 a = arg max_a Q(s,a)
-    ε/|A|,          如果 a ≠ arg max_a Q(s,a)
+    1 - ε + ε/|A|,  a = arg max_a Q(s,a)
+    ε/|A|,          a ≠ arg max_a Q(s,a)
   }
   ```
   其中ε∈(0,1)是探索率，|A|是动作空间大小
@@ -38,8 +38,8 @@ Q-learning属于off-policy算法，即自始至终使用固定的双策略架构
 - **定义**：Greedy策略（贪婪策略）
   ```
   π*(a|s) = {
-    1,  如果 a = arg max_a Q(s,a)
-    0,  如果 a ≠ arg max_a Q(s,a)
+    1,  a = arg max_a Q(s,a)
+    0,  a ≠ arg max_a Q(s,a)
   }
   ```
 
