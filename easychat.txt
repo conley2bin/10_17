@@ -1,0 +1,244 @@
+---
+
+# Q-learning算法理论总结
+
+## 1. Q-learning的目标
+
+Q-learning本质是为了得到最优动作价值函数 \(Q^*\)，因为最优动作价值函数就是在状态 \(s\) 执行动作 \(a\) 后，未来一直遵循最优策略，所能得到的最大期望回报，其中就隐含最优策略，即每次选择每个状态动作价值最大的那个。
+
+**贝尔曼最优方程**：
+
+\[
+Q^*(s,a) = \mathbb{E}[R_{t+1} + \gamma \max_{a'\in A} Q^*(S_{t+1}, a')]
+\]
+
+
+## 2. Model-free的处理方法
+
+Q-learning作为model-free算法，无法直接使用求和形式：
+
+\[
+Q^*(s,a) = r(s,a) + \gamma \sum_{s'\in S} p(s'|s,a)\max_{a'}Q^*(s',a')
+\]
+
+因为它不知道环境模型——既不知道状态转移概率 \(p(s'|s,a)\)，也不知道奖励函数 \(r(s,a)\)，因此无法计算这个求和。所以Q-learning的目标是找到满足期望形式：
+
+\[
+Q^*(s,a) = \mathbb{E}[R_{t+1} + \gamma \max_{a'\in A}Q^*(S_{t+1},a')]
+\]
+
+的最优 \(Q\) 函数，它通过与环境交互获得采样 \((s,a,R_{t+1},s_{t+1})\)，用单个样本 \(R_{t+1}+\gamma\max_{a'\in A}Q(s_{t+1},a')\) 近似期望进行增量更新，通过大量采样和迭代，利用大数定律使Q值逐渐收敛到满足贝尔曼最优方程的 \(Q^*\)。
+
+
+## 3. Off-policy双策略架构
+
+Q-learning属于off-policy算法，即自始至终使用固定的双策略架构。
+
+### 3.1 Behavior Policy（行为策略）
+
+- **定义**：ε-greedy策略
+
+\[
+\pi(a|s)=
+\begin{cases}
+1-\varepsilon+\varepsilon/|A|, & a=\arg\max_a Q(s,a)\\
+\varepsilon/|A|, & a\ne\arg\max_a Q(s,a)
+\end{cases}
+\]
+
+其中 \(\varepsilon\in(0,1)\) 是探索率，\(|A|\) 是动作空间大小。
+
+- **策略解释**：
+  - 以概率 \((1-\varepsilon)\) 选择当前最优动作（利用）  
+  - 以概率 \(\varepsilon\) 随机选择任意动作（探索）  
+  - 确保所有动作都有被选择的可能性  
+
+- **作用**：具有探索性，平衡探索与利用，与环境交互，采集经验样本。
+
+
+### 3.2 Target Policy（目标策略）
+
+- **定义**：Greedy策略（贪婪策略）
+
+\[
+\pi^*(a|s)=
+\begin{cases}
+1, & a=\arg\max_a Q(s,a)\\
+0, & a\ne\arg\max_a Q(s,a)
+\end{cases}
+\]
+
+- **策略解释**：
+  - 确定性策略，总是选择Q值最大的动作  
+  - 不进行探索，纯粹利用当前知识  
+  - 体现了对最优动作的“贪婪”选择  
+
+- **作用**：在Q-learning更新公式中，用于计算 \(\max_{a'\in A} Q(s_{t+1},a')\)。
+
+
+### 3.3 策略演化机制
+
+策略的定义方式从算法开始到结束保持恒定：
+- Behavior policy始终是ε-greedy；
+- Target policy始终是greedy。
+
+虽然策略定义固定，但Q表的持续更新导致策略行为的演化：
+- **初始阶段**：Q值随机或为零，策略行为接近随机；
+- **学习过程**：Q值逐步逼近 \(Q^*\)，策略行为逐渐优化；
+- **收敛阶段**：Q值接近最优，策略行为趋向最优。
+
+Q-learning算法通过间接机制实现策略优化：
+- 不直接调整策略参数；
+- 仅通过更新Q值改变策略行为；
+- 简单的值迭代实现复杂的策略改进。
+
+
+## 4. 增量更新机制
+
+采样 \((s_t,a_t,R_{t+1},s_{t+1})\) 后，对该状态-动作对采用增量更新方式，其中 \(\alpha\) 为学习率（标准Q-learning中 \(0<\alpha\le1\)）：
+
+\[
+Q_{\text{new}}(s_t,a_t)=Q_{\text{old}}(s_t,a_t)+\alpha(\text{target}-Q_{\text{old}}(s_t,a_t))
+\]
+
+
+### 学习率 \(\alpha\) 的影响分析
+
+对于被更新的状态-动作对 \((s,a)\)：
+
+1. \(\alpha=1\)：完全替换，直接跳到目标：\(Q_{\text{new}}(s,a)=(\mathcal{T}Q_{\text{old}})(s,a)\)  
+2. \(\alpha=0\)：完全不动：\(Q_{\text{new}}(s,a)=Q_{\text{old}}(s,a)\)  
+3. \(0<\alpha<1\)：部分朝 \((\mathcal{T}Q_{\text{old}})(s,a)\) 移动，保守更新  
+4. \(\alpha>1\)：过度更新，会跨越目标值，可能导致震荡，算法不稳定  
+5. \(\alpha<0\)：反向更新，算法发散，无法学习  
+
+具体更新公式：
+
+\[
+Q(s_t,a_t)\leftarrow Q(s_t,a_t)+\alpha[R_{t+1}+\gamma\max_{a'\in A}Q(s_{t+1},a')-Q(s_t,a_t)]
+\]
+
+
+## 5. 收敛性证明
+
+本节证明在固定学习率 \(\alpha\)（\(0<\alpha\le1\)）下的期望收敛性。
+
+### 收敛性的前提条件
+
+1. 有限的状态和动作空间  
+2. 所有状态-动作对被充分访问  
+3. 折扣因子 \(0\le\gamma<1\)
+
+接下来证明Q-learning更新规则在期望意义下的收敛性。
+
+
+### 5.1 证明需要用到的数学工具
+
+**1. 贝尔曼最优算子 \(\mathcal{T}\)**  
+
+\[
+(\mathcal{T}Q)(s,a)=\mathbb{E}[R_{t+1}+\gamma\max_{a'\in A}Q(S_{t+1},a')]
+\]
+
+
+**2. 不动点性质**
+
+\[
+\mathcal{T}Q^*=Q^*
+\]
+
+
+**3. 压缩映射性质**
+
+\[
+\|\mathcal{T}Q_1-\mathcal{T}Q_2\|_\infty\le\gamma\|Q_1-Q_2\|_\infty
+\]
+
+
+**4. 无穷范数**
+
+\[
+\|Q\|_\infty=\max_{s,a}|Q(s,a)|
+\]
+
+
+**5. Banach不动点定理**
+
+完备度量空间中的压缩映射存在唯一不动点。
+
+
+### 5.2 期望意义下更新方向分析
+
+\[
+\mathbb{E}[Q_{\text{new}}(s,a)]=Q_{\text{old}}(s,a)+\alpha[(\mathcal{T}Q_{\text{old}})(s,a)-Q_{\text{old}}(s,a)]
+\]
+
+\[
+=(1-\alpha)Q_{\text{old}}(s,a)+\alpha(\mathcal{T}Q_{\text{old}})(s,a)
+\]
+
+
+### 5.3 误差收缩证明：证明收敛速率
+
+\[
+\begin{aligned}
+\small
+\text{步骤1（更新公式的函数形式）：} &\quad Q_{\text{new}}=(1-\alpha)Q_{\text{old}}+\alpha(\mathcal{T}Q_{\text{old}})\\
+\text{步骤2（两边减去 }Q^*\text{）：} &\quad Q_{\text{new}}-Q^*=(1-\alpha)Q_{\text{old}}+\alpha(\mathcal{T}Q_{\text{old}})-Q^*\\
+\text{步骤3（}Q^*\text{拆分代入）：} &\quad Q_{\text{new}}-Q^*=(1-\alpha)Q_{\text{old}}+\alpha(\mathcal{T}Q_{\text{old}})-(1-\alpha)Q^*-\alpha Q^*\\
+\text{步骤4（重新组合）：} &\quad Q_{\text{new}}-Q^*=(1-\alpha)[Q_{\text{old}}-Q^*]+\alpha[(\mathcal{T}Q_{\text{old}})-Q^*]\\
+\text{步骤5（定义 }e=Q-Q^*\text{）：} &\quad e_{\text{new}}=(1-\alpha)e_{\text{old}}+\alpha(\mathcal{T}Q_{\text{old}}-Q^*)\\
+\text{步骤6（利用 }\mathcal{T}Q^*=Q^*\text{）：} &\quad e_{\text{new}}=(1-\alpha)e_{\text{old}}+\alpha(\mathcal{T}Q_{\text{old}}-\mathcal{T}Q^*)
+\end{aligned}
+\]
+
+**步骤7**：应用压缩映射性质  
+
+\[
+\|\mathcal{T}Q_{\text{old}}-\mathcal{T}Q^*\|_\infty\le\gamma\|Q_{\text{old}}-Q^*\|_\infty=\gamma\|e_{\text{old}}\|_\infty
+\]
+
+于是：
+
+\[
+\begin{aligned}
+\|e_{\text{new}}\|_\infty
+&=\|(1-\alpha)e_{\text{old}}+\alpha(\mathcal{T}Q_{\text{old}}-\mathcal{T}Q^*)\|_\infty\\
+&\le(1-\alpha)\|e_{\text{old}}\|_\infty+\alpha\|\mathcal{T}Q_{\text{old}}-\mathcal{T}Q^*\|_\infty\\
+&\le(1-\alpha)\|e_{\text{old}}\|_\infty+\alpha\gamma\|e_{\text{old}}\|_\infty\\
+&=[1-\alpha(1-\gamma)]\|e_{\text{old}}\|_\infty
+\end{aligned}
+\]
+
+
+### 5.4 收敛性结论
+
+- 收缩因子 \(\rho=1-\alpha(1-\gamma)\)  
+- 因为 \(0<\alpha\le1,0<\gamma<1\)，所以 \(\rho<1\)  
+- 第 \(t\) 步后：
+
+\[
+\|e_t\|_\infty\le\rho^t\|e_0\|_\infty
+\]
+
+
+## 6. 算法实施
+
+通过大量采样不断更新 \(Q(s,a)\)，直至满足训练终止条件。
+
+1. 固定Episode数  
+2. 连续N个episode的平均奖励变化小于阈值  
+3. \(\|Q_{\text{new}}-Q_{\text{old}}\|_\infty<\text{threshold}\)
+
+
+## 7. 算法特点总结
+
+- **优势**：简单易实现、保证收敛到最优、无需环境模型  
+- **局限**：仅限于有限状态空间、样本效率较低  
+- **关键参数**：学习率 \(\alpha\)、探索率 \(\varepsilon\) 需精调  
+- **实践提示**：固定小学习率通常比衰减学习率更稳定  
+
+---
+
+
+
